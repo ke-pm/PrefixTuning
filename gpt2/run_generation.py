@@ -789,13 +789,13 @@ def main():
 
         else:
             if ('lowdata' in args.model_name_or_path) or (args.prefixModel_name_or_path is not None and 'lowdata' in args.prefixModel_name_or_path):
-                test_path = '/u/scr/xlisali/e2e_data/src1_valid.txt'
+                test_path = '../data/e2e_data/src1_valid.txt'
             else:
 
                 if args.eval_dataset == 'valid':
-                    test_path = '/u/scr/xlisali/e2e_data/src1_valid.txt'
+                    test_path = '../data/e2e_data/src1_valid.txt'
                 elif args.eval_dataset == 'test':
-                    test_path = '/u/scr/xlisali/e2e_data/src1_test.txt'
+                    test_path = '../data/e2e_data/src1_test.txt'
 
             print('using the test path ', test_path)
             if args.prefixModel_name_or_path is not None:
@@ -834,14 +834,14 @@ def main():
         QUICK_CHECK = False
         if args.task_mode == 'webnlg':
             if args.eval_dataset == 'valid':
-                test_path = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/dev.json"
+                test_path = "../data/webnlg_challenge_2017/dev.json"
             elif args.eval_dataset == 'test':
-                test_path = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/test.json"
+                test_path = "../data/webnlg_challenge_2017/test.json"
             else:
                 assert False,  "eval_dataset needs to be [valid, test]"
             prompt_text_dict = read_webnlg_files(test_path, tokenizer)
         elif args.task_mode == 'triples':
-            test_path = "/u/scr/xlisali/DART/dart/data/v1.1.1/dart-v1.1.1-full-test.json"
+            test_path = "../data/dart/dart-v1.1.1-full-test.json"
             # test_path = "/u/scr/xlisali/DART/dart/data/v1.1.1/dart-v1.1.1-full-dev.json"
             prompt_text_dict = read_triples_files(test_path, tokenizer)
 
@@ -1331,7 +1331,7 @@ def main():
         out_file_eval = curr_dir + '_eval'
         print(out_file_eval, '\n', gold_dir, '\n', curr_dir)
         tagging = os.path.basename(curr_dir)
-        os.system("bash /u/scr/xlisali/DART/dart/evaluation/run_eval_on_webnlg.sh "
+        os.system("bash ../../dart/evaluation/run_eval_on_webnlg.sh "
                   "{} {} >> {}".format(curr_dir, tagging, out_file_eval))
 
 
