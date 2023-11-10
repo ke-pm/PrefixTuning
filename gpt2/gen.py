@@ -290,6 +290,7 @@ if __name__ == '__main__':
 
 
     print(COMMANDLINE)
+    print ('after commandline')
 
     if not submit_job:
         os.system(COMMANDLINE)
