@@ -174,6 +174,39 @@ if __name__ == '__main__':
             tuning_mode = 'adaptertune'
             app = ''
 
+    elif mode == 'dialog':
+        print('code went here')
+        Token_FILE = MODEL_FILE
+        gen_dir = 'dialog_models'
+        sub_model_name = os.path.basename(MODEL_FILE)
+        if 'finetune' in MODEL_FILE:
+            tuning_mode = 'finetune'
+            app = ''
+        elif 'prefixtune' in MODEL_FILE:
+            tuning_mode = 'prefixtune'
+            if "tune_y_" in MODEL_FILE:
+                app = '--optim_prefix {} --preseqlen {} '.format('yes', 20)
+            else:
+                app = '--optim_prefix {} --preseqlen {} '.format('no', 20)
+            if "_emb" in MODEL_FILE:
+                app += "--prefix_mode embedding "
+            elif "_act" in MODEL_FILE:
+                app += "--prefix_mode activation "
+            if "_inf" in MODEL_FILE or 'infix' in MODEL_FILE:
+                app += " --format_mode infix "
+            elif "_cat" in MODEL_FILE:
+                app += " --format_mode cat "
+            elif "_pee" in MODEL_FILE:
+                app += " --format_mode peek "
+
+            MODEL_FILE2 = MODEL_FILE
+
+            if 'large' in sub_model_name:
+                MODEL_FILE = 'gpt2-large'
+            else:
+                MODEL_FILE = 'gpt2-medium'
+        print(Token_FILE)
+                
     elif mode == 'webnlg':
         Token_FILE = MODEL_FILE
         gen_dir = 'webnlg_models'

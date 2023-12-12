@@ -15,7 +15,6 @@ from ...tokenization_utils import PreTrainedTokenizer
 from ...utils import logging
 from ...modeling_bert import BertForMaskedLM, BertModel
 from ...tokenization_bert import BertTokenizer, BertTokenizerFast
-
 from pathlib import Path
 import linecache
 
@@ -782,7 +781,13 @@ class LineByLineWebNLGTextDataset(Dataset):
     soon.
     """
 
-    def __init__(self, tokenizer: PreTrainedTokenizer, file_path: str, block_size: int, bos_tok:str, eos_tok:str):
+    def __init__(
+        self, 
+        tokenizer: PreTrainedTokenizer, 
+        file_path: str, 
+        block_size: int, 
+        bos_tok:str, 
+        eos_tok:str):
         assert os.path.isfile(file_path), f"Input file path {file_path} not found"
         # Here, we do not cache the features, operating under the assumption
         # that we will soon use fast multithreaded tokenizers from the
@@ -892,6 +897,70 @@ class LineByLineWebNLGTextDataset(Dataset):
 
                 )
 
+def process_conversation_line(line):
+    # Split the line into individual utterances using the "__eou__" token
+    utterances = line.strip().split("__eou__")[:-1]  # Exclude the last empty string
+
+    # Separate the history (all utterances except the last one) and the response (last utterance)
+    history = utterances[:-1]
+    response = utterances[-1]
+
+    return {"history": history, "response": response}
+
+def create_json_from_txt(path):
+    with open(path, 'r', encoding='utf-8') as txt_file:
+        conversations = [process_conversation_line(line) for line in txt_file]
+    return conversations
+class LineByLineDialogDataset(Dataset):
+    def __init__(
+        self, 
+        tokenizer: PreTrainedTokenizer, 
+        file_path: str, 
+        max_history_length: int, 
+        max_response_length: int,
+        bos_tok:str, 
+        eos_tok:str
+        ):
+        assert os.path.isfile(file_path), f"Input file path {file_path} not found"
+        self.history = []
+        self.responses = []
+        self.examples = []
+        self.max_history_length = max_history_length
+        self.max_response_length = max_response_length
+        self.tokenizer = tokenizer
+        self.bos_tok = bos_tok
+        self.eos_tok = eos_tok
+        print('we reached the loading part')
+        with open(file_path, 'r', encoding='utf-8') as txt_file:
+            for line in txt_file:
+                dialogue = line.strip().split('__eou__')
+                dialogue = [turn.strip() for turn in dialogue if turn.strip()]
+                if len(dialogue) > 1:
+                    history = dialogue[:-1]
+                    response = dialogue[-1]
+                    response = response[:self.max_response_length]
+                    history_str = ' '.join(history)
+                    history_str = history_str[-self.max_history_length:]
+                    edited_sent = ' {} {} '.format(history_str, self.bos_tok) + response + ' {}'.format(self.eos_tok)
+                    self.examples.append(edited_sent)                
+            batch_encoding = self.tokenizer(self.examples, max_length=self.max_history_length, truncation=True, padding=True)
+            self.examples = batch_encoding["input_ids"]
+            self.labels = copy.deepcopy(self.examples)
+            separator = tokenizer(bos_tok, add_special_tokens=False)['input_ids'][0]
+            for i, elem in enumerate(self.labels):
+                sep_idx = elem.index(separator) + 1
+                self.labels[i][:sep_idx] = [-100] * sep_idx
+            
+            print('examples length', len(self.examples), len(self.labels))
+                
+            
+    def __getitem__(self, i):
+        print('inside get item')
+        return (torch.tensor(self.examples[i], dtype=torch.long),
+            torch.tensor(self.labels[i], dtype=torch.long))        
+
+    def __len__(self):
+        return len(self.examples)
 
 class LineByLineTriplesTextDataset(Dataset):
     """

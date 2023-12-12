@@ -175,6 +175,56 @@ def read_wp_files(path, tokenizer):
             file_dict[src].append(tgt)
     return file_dict
 
+""" def read_dialog_files(path, tokenizer):
+    file_dict = []
+    with open(path, 'r', encoding='utf-8') as file:
+        for line in file:
+            turns = line.strip().split('__eou__')
+            # Filter out empty turns (e.g., if the entry ends with __eou__)
+            turns = [turn.strip() for turn in turns if turn.strip()]
+
+            if len(turns) > 1:
+                # History includes all turns except the last one
+                history = ' '.join(turns[:-1])
+                # Response is the last turn
+                response = turns[-1]
+
+                # Append the tuple to the list
+                file_dict.append((history, response))
+
+    return file_dict """
+def process_conversation_line(line):
+    # Split the line into individual utterances using the "__eou__" token
+    utterances = line.strip().split("__eou__")[:-1]  # Exclude the last empty string
+
+    # Separate the history (all utterances except the last one) and the response (last utterance)
+    history = utterances[:-1]
+    response = utterances[-1]
+
+    return {"history": history, "response": response}
+def create_json_from_txt(txt_path, json_path):
+    with open(txt_path, 'r', encoding='utf-8') as txt_file:
+        conversations = [process_conversation_line(line) for line in txt_file]
+        print(conversations)
+    
+def read_dialog_files(path, tokenizer):
+    file_dict = []
+    
+    with open(path, 'r', encoding='utf-8') as file:        
+        for line in file:
+            turns = line.strip().split('__eou__')
+            # Filter out empty turns (e.g., if the entry ends with __eou__)
+            turns = [turn.strip() for turn in turns if turn.strip()]
+            if len(turns) > 1:
+                # History includes all turns except the last one
+                history = ' '.join(turns[:-1])
+                history = '{} {}'.format(history, tokenizer.bos_token)
+                # Response is the last turn
+                response = turns[-1]
+                # Append the tuple to the list
+                file_dict.append((history, response))
+    dialog_dict = dict(file_dict)
+    return dialog_dict
 
 def read_classifySentiment_files(path, tokenizer):
     file_dict = []
@@ -233,6 +283,7 @@ def read_sum_files(path, tokenizer, max_source_length, max_target_length):
             file_dict[src_full].append(tgt)
     return file_dict
 
+# read data frpm json file and organize it into a dictionary
 def read_webnlg_files(path, tokenizer):
     file_dict = {}
 
@@ -829,6 +880,39 @@ def main():
             write_e2e_src(prompt_text_lst, src_dir)
             out_handle = open(curr_dir, 'w')
 
+    elif args.task_mode == 'dialog':
+        QUICK_CHECK = False
+        if args.eval_dataset == 'valid':
+            test_path = "/home/elhadrik/EMNLP_dataset/validation/dialogues_validation.txt"
+        elif args.eval_dataset == 'test':
+            test_path = "/home/elhadrik/EMNLP_dataset/test/dialogues_test.txt"
+        else:
+            assert False,  "eval_dataset needs to be [valid, test]"
+        prompt_text_dict = read_dialog_files(test_path, tokenizer)
+        prompt_text_lst, prompt_text_tgt = zip(*prompt_text_dict.items())
+        # prompt_text_lst = list(prompt_text_dict.keys())
+        if args.prefixModel_name_or_path is not None:
+            temp = os.path.basename(args.prefixModel_name_or_path)
+        else:
+            temp = os.path.basename(args.model_name_or_path)
+        split_file = args.eval_dataset # test
+        decode_mode = 'beam'
+        curr_dir = os.path.join('/home/elhadrik/contrast_LM/transformers/examples/text-generation/',
+                                args.gen_dir,
+                                '{}_{}_{}'.format(temp, split_file, decode_mode))
+        print(curr_dir)
+        gold_dir = os.path.join('/home/elhadrik/contrast_LM/transformers/examples/text-generation/',
+                                args.gen_dir,
+                                '{}_{}_{}'.format(temp, split_file, 'gold'))
+        print(gold_dir)
+        write_e2e_src(prompt_text_tgt, gold_dir)
+        src_dir = os.path.join('/home/elhadrik/contrast_LM/transformers/examples/text-generation/',
+                                args.gen_dir,
+                                '{}_{}_{}'.format(temp, split_file, 'src'))
+        write_e2e_src(prompt_text_lst, src_dir)
+
+
+        out_handle = open(curr_dir, 'w')
 
     elif args.task_mode == 'webnlg' or args.task_mode == 'triples':
         QUICK_CHECK = False
@@ -840,10 +924,13 @@ def main():
             else:
                 assert False,  "eval_dataset needs to be [valid, test]"
             prompt_text_dict = read_webnlg_files(test_path, tokenizer)
+            # print('this is the result of read webnlg file function', prompt_text_dict)
         elif args.task_mode == 'triples':
             test_path = "../data/dart/dart-v1.1.1-full-test.json"
-            # test_path = "/home/elhadrik/DART/dart/data/v1.1.1/dart-v1.1.1-full-dev.json"
+            # test_path = "/home/elhadrik/DART/dart/data/prompt_text_lstv1.1.1/dart-v1.1.1-full-dev.json"
+            
             prompt_text_dict = read_triples_files(test_path, tokenizer)
+            # print(prompt_text_dict)
 
         if QUICK_CHECK:
             prompt_text_pair = list(prompt_text_dict.keys())[:20]
@@ -853,6 +940,7 @@ def main():
         else:
             prompt_text_pair = list(prompt_text_dict.keys())
             prompt_text_lst, prompt_rela_lst = zip(*prompt_text_pair)
+            print (prompt_text_lst, prompt_rela_lst)
             if args.prefixModel_name_or_path is not None:
                 temp = os.path.basename(args.prefixModel_name_or_path)
             else:
@@ -1074,6 +1162,42 @@ def main():
                 # TODO.LISA
                 if config.optim_prefix:
                     control_code = None
+            elif args.task_mode == 'dialog':
+                print('went into dialog')
+                src = prompt_text_lst[prompt_idx].split()[:-1]
+                src = ' '.join(src)
+                # this is not correct
+                # cat = prompt_rela_lst[prompt_idx]
+                # src_cat = tokenizer(cat, add_special_tokens=True, truncation=True, is_split_into_words=True)['input_ids']
+                src = tokenizer(src, add_special_tokens=True, truncation=True, is_split_into_words=False)['input_ids']
+                mode = None
+                if 'cat2' in args.prefixModel_name_or_path or 'cat' in args.prefixModel_name_or_path:
+                    mode = 'cat'
+                elif 'nopeek' in args.prefixModel_name_or_path or 'nop' in args.prefixModel_name_or_path:
+                    mode = 'nopeek'
+                elif 'peek' in args.prefixModel_name_or_path or 'pee' in args.prefixModel_name_or_path:
+                    mode = 'peek'
+                elif 'prefixtune15' in args.prefixModel_name_or_path:
+                    mode = 'instruction_based'
+                    # assert False, "prefixtune20 shouldn't be processed here."
+                else:
+                    if args.format_mode == 'infix':
+                        mode = 'infix'
+                    else:
+                        assert False, "Given that it's in prefix tuning mode, need to specify a valid prefix mode, " \
+                                      "(cat, nopeek, peek)"
+                if mode == 'nopeek' or mode == 'infix':
+                    input_pp = tokenizer.bos_token
+                    encoded_prompt = tokenizer(input_pp, add_special_tokens=True, truncation=True, return_tensors="pt", is_split_into_words=False)['input_ids'].to(model.device)
+                    input_ids = encoded_prompt
+
+                if mode in ['cat', 'peek', 'nopeek', 'infix']:
+                    control_code = torch.LongTensor(src).to(model.device).unsqueeze(0)
+                elif mode == 'instruction_based':
+                    control_code = None
+                else:
+                    assert False, "invalid mode type."
+                
             elif args.task_mode == 'webnlg' or args.task_mode == 'triples':
                 src = prompt_text_lst[prompt_idx].split()[:-1]
                 print(src)
@@ -1261,7 +1385,8 @@ def main():
                 )
 
 
-
+        print('the generated sequences are the following')
+        
 
         # Remove the batch dimension when returning multiple sequences
         if len(output_sequences.shape) > 2:
@@ -1277,7 +1402,7 @@ def main():
 
                 # Decode text
                 text = tokenizer.decode(generated_sequence, clean_up_tokenization_spaces=True)
-
+                
                 # Remove all text after the stop token
                 text = text[: text.find(args.stop_token) if args.stop_token else None]
 
@@ -1296,7 +1421,7 @@ def main():
 
                 # Decode text
                 text = tokenizer.decode(generated_sequence, clean_up_tokenization_spaces=True)
-
+                print('printing the generated sequence')
                 print(text)
                 text_output = text[len(tokenizer.decode(encoded_prompt[0], clean_up_tokenization_spaces=True)):]
                 idx = text_output.find(tokenizer.eos_token)
@@ -1304,12 +1429,13 @@ def main():
                     text_output = text_output[:idx]
                 text_output = text_output.strip()
 
-                if args.task_mode == 'topic' or args.task_mode == 'sentiment':
+                if args.task_mode == 'dialog' or args.task_mode == 'sentiment':
                     text_output = prompt_text + ' ' + text_output + ' [SPECIAL_END]'
 
 
 
                 if text_output:
+                    print('printing the generated sequence after processing it')
                     print(text_output, file=out_handle)
                 else:
                     print('Error', file=out_handle)

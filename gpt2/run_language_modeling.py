@@ -31,6 +31,7 @@ from transformers.file_utils import cached_path
 import glob
 
 
+
 path = os.path.abspath(transformers.__file__)
 print(path)
 
@@ -41,6 +42,7 @@ from transformers import (
     AutoModelWithLMHead,
     AutoTokenizer,
     DataCollatorForLanguageModeling,
+    DataCollatorForDialogGeneration,
     DataCollatorForPermutationLanguageModeling,
     DataCollatorForWeightedLanguageModeling, # modified
     DataCollatorForEmbMatchLanguageModeling, #modified
@@ -54,6 +56,7 @@ from transformers import (
     DataCollatorForSumLanguageModeling, #modified
     HfArgumentParser,
     LineByLineTextDataset,
+    LineByLineDialogDataset,
     LineByLineWithWeightTextDataset, # modified
     LineByLineEmbMatchTextDataset, # modified
     LineByLineTopicTextDataset, # modified
@@ -120,7 +123,7 @@ class ModelArguments:
     )
 
 
-
+    #prefix sequence length
     preseqlen: Optional[int] = field(
         default=0,
         metadata={
@@ -391,6 +394,7 @@ def get_dataset(
     file_path = args.eval_data_file if evaluate else args.train_data_file
     if args.line_by_line:
         print(args.task_mode)
+        print('argument is line by line')
         # return LineByLineTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
         # return LineByLineWithWeightTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
         if args.task_mode == 'embMatch':
@@ -466,7 +470,11 @@ def get_dataset(
         elif args.task_mode == 'gen_data':
             dataset =  LineByLineWithWeightTextDataset(tokenizer=tokenizer, file_path=file_path,
                                                    block_size=args.block_size, bos_tok=tokenizer.bos_token,
-                                                     eos_tok=tokenizer.eos_token)
+                                                   eos_tok=tokenizer.eos_token)
+        elif args.task_mode == 'dialog':
+            dataset = LineByLineDialogDataset(tokenizer=tokenizer, file_path=file_path,
+                                                   max_history_length = 512, max_response_length = 512, bos_tok=tokenizer.bos_token,
+                                                   eos_tok=tokenizer.eos_token)                                             
         else:
             return LineByLineTextDataset(tokenizer=tokenizer, file_path=file_path, block_size=args.block_size)
 
@@ -921,6 +929,10 @@ def main():
             data_collator = DataCollatorForWeightedLanguageModeling(
                 tokenizer=tokenizer, mlm=data_args.mlm, mlm_probability=data_args.mlm_probability
             )
+        elif data_args.task_mode == 'dialog':
+            data_collator = DataCollatorForDialogGeneration (
+                tokenizer=tokenizer, mlm=data_args.mlm, mlm_probability=data_args.mlm_probability
+            )
         else:
             data_collator = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer, mlm=data_args.mlm, mlm_probability=data_args.mlm_probability
@@ -1086,6 +1098,33 @@ def main():
             os.system('python gen.py data2text yes test {} no'.format(checkpoint_path))
 
 
+    elif data_args.task_mode == 'dialog':
+        del model
+        del trainer
+        if model_args.tuning_mode == 'prefixtune':
+            del gpt2
+        torch.cuda.empty_cache()
+        elem = os.path.abspath(training_args.output_dir)
+        checkpoint_path = elem
+
+        print('running evaluation on ', checkpoint_path)
+
+        print('python gen.py dialog yes valid {} no'.format(checkpoint_path))
+        os.system('python gen.py dialog yes valid {} no'.format(checkpoint_path))
+        os.system('python gen.py dialog yes test {} no'.format(checkpoint_path))
+
+
+        if 'earlystop' in  training_args.output_dir:
+            elem = os.path.abspath(training_args.output_dir)
+            checkpoint_path = glob.glob(os.path.join(elem, '*checkpoint*'))
+            assert len(checkpoint_path) == 1
+            checkpoint_path = checkpoint_path[0]
+
+            print('running early stopping evaluation on ', checkpoint_path)
+
+            os.system('python gen.py triples yes valid {} no'.format(checkpoint_path))
+            os.system('python gen.py triples yes test {} no'.format(checkpoint_path))
+        return results
 
     elif data_args.task_mode == 'webnlg':
         del model

@@ -218,6 +218,7 @@ if is_torch_available():
     from .benchmark.benchmark import PyTorchBenchmark
     from .benchmark.benchmark_args import PyTorchBenchmarkArguments
     from .data.data_collator import (
+        DataCollatorForDialogGeneration,
         DataCollator,
         DataCollatorForLanguageModeling,
         DataCollatorForNextSentencePrediction,
@@ -252,6 +253,7 @@ if is_torch_available():
         LineByLineLengthTextDataset,
         LineByLineKeywordTextDataset,
         LineByLineData2TextTextDataset,
+        LineByLineDialogDataset,
         LineByLineLemma2TextTextDataset,
         LineByLineText2DataTextDataset,
         LineByLineTriplesTextDataset,

@@ -83,7 +83,7 @@ if __name__ == '__main__':
         load_prefix_model = False
 
     assert  args.mode in ['data2text', 'triples', 'webnlg', 'writingPrompts', 'cnndm', 'xsum', 'sentiment', 'topic',
-                          'classify-sentiment', 'classify-topic']
+                          'classify-sentiment', 'classify-topic', 'dialog']
 
     assert args.objective_mode in [0, 1, 2, 3, 4]
     # 0 means the regular token level objective, which is sum / output_len
@@ -197,6 +197,11 @@ if __name__ == '__main__':
         TRAIN_FILE = "/juice/u/xlisali/WritingPrompts/writingPrompts/train_small.txt"
         TEST_FILE = "/juice/u/xlisali/WritingPrompts/writingPrompts/valid_small.txt"
         folder_name = "wp_models/"
+
+    elif args.mode == 'dialog':
+        TRAIN_FILE = "/home/elhadrik/EMNLP_dataset/train/dialogues_train.txt"
+        TEST_FILE = "/home/elhadrik/EMNLP_dataset/test/dialogues_test.txt"
+        folder_name = "dialog_models"
 
     elif args.mode == 'cnndm':
         TRAIN_FILE = '/home/elhadrik/contrast_LM/transformers/examples/seq2seq/cnn_dm/train.source'

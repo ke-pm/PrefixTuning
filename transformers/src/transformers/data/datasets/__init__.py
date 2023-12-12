@@ -15,6 +15,7 @@ from .language_modeling import (
     LineByLineKeywordTextDataset,
     LineByLineData2TextTextDataset,
     LineByLineLemma2TextTextDataset,
+    LineByLineDialogDataset,
     LineByLineText2DataTextDataset,
     LineByLineTriplesTextDataset,
     LineByLineWebNLGTextDataset,
